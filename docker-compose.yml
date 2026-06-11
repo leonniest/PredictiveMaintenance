@@ -1,0 +1,63 @@
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: predictive-maintenance-mssql
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Your_strong_password123!"
+      MSSQL_PID: "Developer"
+    ports:
+      - "14333:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: predictive-maintenance-rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: predictive-maintenance-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/src/PredictiveMaintenance.Api/Dockerfile
+    container_name: predictive-maintenance-api
+    depends_on:
+      - mssql
+      - rabbitmq
+      - mailpit
+    environment:
+      ASPNETCORE_URLS: "http://+:8080"
+      ConnectionStrings__PredictiveMaintenance: "Server=mssql,1433;Database=PredictiveMaintenance;User Id=sa;Password=Your_strong_password123!;TrustServerCertificate=True"
+      Smtp__Host: "mailpit"
+      Smtp__Port: "1025"
+      RabbitMq__Host: "rabbitmq"
+      RabbitMq__Port: "5672"
+      Notifications__Mode: "Smtp"
+      DeepSeek__ApiKey: "${DEEPSEEK_API_KEY:-}"
+      DeepSeek__BaseUrl: "https://api.deepseek.com"
+      DeepSeek__Model: "deepseek-v4-flash"
+      Cors__AllowedOrigins__0: "http://localhost:5173"
+    ports:
+      - "5088:8080"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: predictive-maintenance-frontend
+    depends_on:
+      - api
+    ports:
+      - "5173:80"
+
+volumes:
+  mssql-data:
