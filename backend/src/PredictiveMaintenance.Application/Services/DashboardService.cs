@@ -210,6 +210,13 @@ public sealed class DashboardService(
             machines.Add(await ToMachineDto(machine, cancellationToken));
         }
 
+        // Average across all parts (not rounded machine averages) so this matches
+        // the fleet health shown on the overview risk list.
+        var partScores = machines
+            .SelectMany(m => m.Controller.Parts)
+            .Select(p => p.Prediction.HealthScore)
+            .ToList();
+
         return new CompanyDto(
             company.Id,
             company.Name,
@@ -218,7 +225,7 @@ public sealed class DashboardService(
             company.Industry,
             company.Machines.Count,
             company.Machines.SelectMany(m => m.Controller.Parts).SelectMany(p => p.Alerts).Count(a => a.Status is AlertStatus.Open or AlertStatus.Notified or AlertStatus.Dispatched),
-            machines.Count == 0 ? 100 : (int)Math.Round(machines.Average(m => m.HealthScore)),
+            partScores.Count == 0 ? 100 : (int)Math.Round(partScores.Average()),
             machines);
     }
 
