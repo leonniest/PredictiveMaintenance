@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { UserProfile } from '../types';
 
-type Page = 'overview' | 'resellers' | 'machines' | 'analytics' | 'alerts' | 'settings';
+type Page = 'overview' | 'resellers' | 'machines' | 'analytics' | 'alerts' | 'settings' | 'architecture';
 
 defineProps<{
   user: UserProfile;
@@ -30,6 +30,7 @@ defineEmits<{
       <button :class="{ active: activePage === 'analytics' }" @click="$emit('navigate', 'analytics')">Analytics</button>
       <button :class="{ active: activePage === 'alerts' }" @click="$emit('navigate', 'alerts')">Alerts</button>
       <button :class="{ active: activePage === 'settings' }" @click="$emit('navigate', 'settings')">Settings</button>
+      <button :class="{ active: activePage === 'architecture' }" @click="$emit('navigate', 'architecture')">Architecture</button>
     </nav>
     <button class="secondary dark" @click="$emit('logout')">Sign out</button>
   </aside>

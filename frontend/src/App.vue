@@ -7,6 +7,7 @@ import LoginView from './components/LoginView.vue';
 import TopAlertSummary from './components/TopAlertSummary.vue';
 import AlertsPage from './views/AlertsPage.vue';
 import AnalyticsPage from './views/AnalyticsPage.vue';
+import ArchitecturePage from './views/ArchitecturePage.vue';
 import MachinesPage from './views/MachinesPage.vue';
 import OverviewPage from './views/OverviewPage.vue';
 import ResellersPage from './views/ResellersPage.vue';
@@ -27,7 +28,7 @@ import type {
 import { formatDateTime } from './utils/format';
 import { companyOpenAlerts, isOpenAlert } from './utils/maintenance';
 
-type Page = 'overview' | 'resellers' | 'machines' | 'analytics' | 'alerts' | 'settings';
+type Page = 'overview' | 'resellers' | 'machines' | 'analytics' | 'alerts' | 'settings' | 'architecture';
 
 const email = ref('admin@showcase.local');
 const password = ref('Admin123!');
@@ -86,7 +87,8 @@ const pageTitle = computed(() => ({
   machines: 'Machine Detail',
   analytics: 'Analytics',
   alerts: 'Alert Center',
-  settings: 'Support Settings'
+  settings: 'Support Settings',
+  architecture: 'Architecture'
 })[activePage.value]);
 
 async function signIn() {
@@ -329,6 +331,7 @@ onUnmounted(() => {
         @dispatch="dispatch"
       />
       <SettingsPage v-else-if="activePage === 'settings'" :support-settings="supportSettings" @save="saveSupport" />
+      <ArchitecturePage v-else-if="activePage === 'architecture'" />
     </section>
 
     <AssistantWidget
