@@ -73,7 +73,13 @@ defineEmits<{
               <strong>{{ alert.machineName }}</strong>
               <small>{{ alert.partName }} / first alerted {{ formatDate(alert.createdAt) }}</small>
             </button>
-            <button class="primary-small" @click="$emit('dispatch', allMachines.find((machine) => machine.id === alert.machineId)!, alert)">Dispatch</button>
+            <button
+              :class="['primary-small', { dispatched: alert.status === 'Dispatched' }]"
+              :disabled="alert.status === 'Dispatched'"
+              @click="$emit('dispatch', allMachines.find((machine) => machine.id === alert.machineId)!, alert)"
+            >
+              {{ alert.status === 'Dispatched' ? 'Dispatched' : 'Dispatch' }}
+            </button>
           </article>
         </div>
         <EmptyState v-else title="No critical dispatches" detail="Warning-level alerts are being monitored, but nothing requires immediate technician dispatch." />

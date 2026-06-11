@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import BarChart from '../components/BarChart.vue';
-import LineChart from '../components/LineChart.vue';
 import type { FailureTrend, PartLifetime } from '../types';
 import { formatMonth, formatNumber } from '../utils/format';
 
@@ -25,7 +24,6 @@ defineProps<{
         <h3>Technician work-order trend</h3>
         <span>Monthly inspections, repairs, replacements and failure reports</span>
       </div>
-      <LineChart :points="trends.map((item) => ({ label: formatMonth(item.month), value: item.totalRecords }))" color="#8a5a22" />
       <div class="trend-table">
         <div class="trend-row header">
           <span>Month</span>

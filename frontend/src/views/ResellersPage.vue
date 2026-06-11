@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import type { Company, Machine } from '../types';
-import { healthSeverity } from '../utils/maintenance';
+import type { Alert, Company, Machine } from '../types';
+import { companyOpenAlerts, healthSeverity, machineAlertCount } from '../utils/maintenance';
 
 defineProps<{
   companies: Company[];
+  alerts: Alert[];
 }>();
 
 defineEmits<{
@@ -23,7 +24,7 @@ defineEmits<{
         <div class="reseller-stats">
           <span>{{ company.machineCount }} machines</span>
           <span>{{ company.industry }}</span>
-          <b :class="{ urgent: company.openAlertCount > 0 }">{{ company.openAlertCount }} open alerts</b>
+          <b :class="{ urgent: companyOpenAlerts(company.id, alerts).length > 0 }">{{ companyOpenAlerts(company.id, alerts).length }} open alerts</b>
         </div>
         <div class="machine-mini-list">
           <button v-for="machine in company.machines" :key="machine.id" @click="$emit('openMachine', machine)">
@@ -33,7 +34,7 @@ defineEmits<{
             </span>
             <span class="machine-list-right">
               <b :class="['score', healthSeverity(machine.healthScore)]">{{ machine.healthScore }}</b>
-              <em v-if="machine.openAlertCount">{{ machine.openAlertCount }}</em>
+              <em v-if="machineAlertCount(machine, alerts)">{{ machineAlertCount(machine, alerts) }} alerts</em>
             </span>
           </button>
         </div>

@@ -15,21 +15,25 @@ public sealed class DeepSeekClient(HttpClient httpClient, IOptions<DeepSeekOptio
         var settings = options.Value;
         if (!IsConfigured)
         {
-            return "DeepSeek is not configured. Set DeepSeek__ApiKey on the API container to enable live LLM answers.";
+            return "DeepSeek is not configured. Set DEEPSEEK_API_KEY in the root .env file and restart the API container to enable live LLM answers.";
         }
 
-        httpClient.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post,
+            new Uri(settings.BaseUrl.TrimEnd('/') + "/chat/completions"));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", settings.ApiKey);
+        request.Content = JsonContent.Create(new ChatCompletionRequest(
+            settings.Model,
+            messages.Select(m => new ChatCompletionMessage(m.Role, m.Content)).ToList(),
+            0.2m));
 
-        var response = await httpClient.PostAsJsonAsync(
-            "chat/completions",
-            new ChatCompletionRequest(
-                settings.Model,
-                messages.Select(m => new ChatCompletionMessage(m.Role, m.Content)).ToList(),
-                0.2m),
-            cancellationToken);
-
-        response.EnsureSuccessStatusCode();
+        using var response = await httpClient.SendAsync(request, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+        {
+            var error = await response.Content.ReadFromJsonAsync<ChatCompletionErrorEnvelope>(cancellationToken: cancellationToken);
+            var reason = error?.Error?.Message ?? response.ReasonPhrase ?? "unknown error";
+            return $"The DeepSeek API rejected the request ({(int)response.StatusCode}): {reason}. Check the API key, model name and account balance at platform.deepseek.com.";
+        }
 
         var payload = await response.Content.ReadFromJsonAsync<ChatCompletionResponse>(cancellationToken: cancellationToken);
         return payload?.Choices.FirstOrDefault()?.Message.Content?.Trim()
@@ -50,4 +54,10 @@ public sealed class DeepSeekClient(HttpClient httpClient, IOptions<DeepSeekOptio
 
     private sealed record ChatCompletionChoice(
         [property: JsonPropertyName("message")] ChatCompletionMessage Message);
+
+    private sealed record ChatCompletionErrorEnvelope(
+        [property: JsonPropertyName("error")] ChatCompletionError? Error);
+
+    private sealed record ChatCompletionError(
+        [property: JsonPropertyName("message")] string? Message);
 }

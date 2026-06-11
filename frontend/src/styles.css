@@ -662,6 +662,15 @@ nav button.active {
   font-size: 13px;
 }
 
+button.dispatched,
+button.dispatched:disabled {
+  background: #e7f0e9;
+  color: #2f5d43;
+  border: 1px solid #b9d4c2;
+  cursor: default;
+  opacity: 1;
+}
+
 .lifetime-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

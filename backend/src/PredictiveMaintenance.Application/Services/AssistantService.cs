@@ -92,9 +92,22 @@ public sealed class AssistantService(
             .Select(m => new AssistantMessage(m.Role, m.Content)));
         messages.Add(new AssistantMessage("user", content));
 
-        var reply = deepSeekClient.IsConfigured
-            ? await deepSeekClient.GetAssistantReplyAsync(messages, cancellationToken)
-            : LocalFallback(content);
+        string reply;
+        if (deepSeekClient.IsConfigured)
+        {
+            try
+            {
+                reply = await deepSeekClient.GetAssistantReplyAsync(messages, cancellationToken);
+            }
+            catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+            {
+                reply = $"The DeepSeek API could not be reached ({ex.Message}). Verify network access from the API container, then try again.";
+            }
+        }
+        else
+        {
+            reply = LocalFallback(content);
+        }
 
         db.AssistantChatMessages.Add(new AssistantChatMessage
         {

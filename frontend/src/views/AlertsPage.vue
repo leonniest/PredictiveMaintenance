@@ -33,7 +33,13 @@ defineEmits<{
         </div>
         <div class="alert-actions">
           <button class="secondary" :disabled="pendingAlertId === alert.id" @click="$emit('notify', alert)">Notify reseller</button>
-          <button :disabled="pendingAlertId === alert.id" @click="$emit('dispatch', allMachines.find((machine) => machine.id === alert.machineId)!, alert)">Mail support</button>
+          <button
+            :class="{ dispatched: alert.status === 'Dispatched' }"
+            :disabled="pendingAlertId === alert.id || alert.status === 'Dispatched'"
+            @click="$emit('dispatch', allMachines.find((machine) => machine.id === alert.machineId)!, alert)"
+          >
+            {{ alert.status === 'Dispatched' ? 'Dispatched' : 'Mail support' }}
+          </button>
           <button class="secondary" :disabled="pendingAlertId === alert.id || alert.status === 'Acknowledged'" @click="$emit('acknowledge', alert)">
             {{ pendingAlertId === alert.id ? 'Saving' : 'Acknowledge' }}
           </button>

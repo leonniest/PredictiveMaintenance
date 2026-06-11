@@ -103,7 +103,7 @@ public sealed class SupportService(
 
         var dueParts = machine.Controller.Parts
             .SelectMany(p => p.Alerts.Select(a => new { Part = p, Alert = a }))
-            .Where(x => x.Alert.Status is AlertStatus.Open or AlertStatus.Notified)
+            .Where(x => x.Alert.Status is AlertStatus.Open or AlertStatus.Notified or AlertStatus.Dispatched)
             .OrderBy(x => x.Alert.PredictedDueDate)
             .Take(6)
             .ToList();
@@ -129,6 +129,12 @@ public sealed class SupportService(
             $"Technician dispatch: {machine.Name}",
             body,
             cancellationToken);
+
+        if (alert is not null)
+        {
+            alert.Status = AlertStatus.Dispatched;
+            await db.SaveChangesAsync(cancellationToken);
+        }
 
         return new DispatchTechnicianResultDto(machine.Id, alert?.Id, recipients, DateTimeOffset.UtcNow);
     }

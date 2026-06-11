@@ -15,7 +15,11 @@ export function machineAlertCount(machine: Machine, alerts: Alert[]) {
 }
 
 export function isOpenAlert(alert: Alert) {
-  return alert.status === 'Open' || alert.status === 'Notified';
+  return alert.status === 'Open' || alert.status === 'Notified' || alert.status === 'Dispatched';
+}
+
+export function companyOpenAlerts(companyId: string, alerts: Alert[]) {
+  return alerts.filter((alert) => alert.companyId === companyId && isOpenAlert(alert));
 }
 
 export function usageLabel(part: Part) {

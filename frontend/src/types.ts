@@ -1,6 +1,6 @@
 export type UserRole = 'Admin' | 'Reseller';
 export type AlertSeverity = 'Info' | 'Warning' | 'Critical';
-export type AlertStatus = 'Open' | 'Acknowledged' | 'Notified' | 'Resolved';
+export type AlertStatus = 'Open' | 'Acknowledged' | 'Notified' | 'Resolved' | 'Dispatched';
 export type PartType = 'Motor' | 'Belt' | 'Relay' | 'Sensor';
 export type ControllerKind = 'Plc' | 'Pcb';
 

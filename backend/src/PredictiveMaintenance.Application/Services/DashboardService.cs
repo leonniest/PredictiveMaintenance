@@ -26,7 +26,7 @@ public sealed class DashboardService(
     {
         var companyIds = await VisibleCompanyIds(user).ToListAsync(cancellationToken);
         var alerts = await AlertQuery(user).ToListAsync(cancellationToken);
-        var openAlerts = alerts.Where(a => a.Status is AlertStatus.Open or AlertStatus.Notified).ToList();
+        var openAlerts = alerts.Where(a => a.Status is AlertStatus.Open or AlertStatus.Notified or AlertStatus.Dispatched).ToList();
         var companies = await CompanyQuery(user).OrderBy(c => c.Name).ToListAsync(cancellationToken);
         var fleetHealth = new Dictionary<Guid, int>();
         foreach (var company in companies)
@@ -217,7 +217,7 @@ public sealed class DashboardService(
             company.ContactEmail,
             company.Industry,
             company.Machines.Count,
-            company.Machines.SelectMany(m => m.Controller.Parts).SelectMany(p => p.Alerts).Count(a => a.Status is AlertStatus.Open or AlertStatus.Notified),
+            company.Machines.SelectMany(m => m.Controller.Parts).SelectMany(p => p.Alerts).Count(a => a.Status is AlertStatus.Open or AlertStatus.Notified or AlertStatus.Dispatched),
             machines.Count == 0 ? 100 : (int)Math.Round(machines.Average(m => m.HealthScore)),
             machines);
     }
@@ -246,7 +246,7 @@ public sealed class DashboardService(
                 machine.Controller.SerialNumber,
                 machine.Controller.FirmwareVersion,
                 parts),
-            machine.Controller.Parts.SelectMany(p => p.Alerts).Count(a => a.Status is AlertStatus.Open or AlertStatus.Notified),
+            machine.Controller.Parts.SelectMany(p => p.Alerts).Count(a => a.Status is AlertStatus.Open or AlertStatus.Notified or AlertStatus.Dispatched),
             parts.Count == 0 ? 100 : (int)Math.Round(parts.Average(p => p.Prediction.HealthScore)));
     }
 

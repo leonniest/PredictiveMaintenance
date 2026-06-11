@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { api, clearToken, login, setToken } from './api';
 import AppSidebar from './components/AppSidebar.vue';
 import AssistantWidget from './components/AssistantWidget.vue';
@@ -25,7 +25,7 @@ import type {
   UserProfile
 } from './types';
 import { formatDateTime } from './utils/format';
-import { isOpenAlert } from './utils/maintenance';
+import { companyOpenAlerts, isOpenAlert } from './utils/maintenance';
 
 type Page = 'overview' | 'resellers' | 'machines' | 'analytics' | 'alerts' | 'settings';
 
@@ -61,6 +61,24 @@ const selectedMachine = computed(() => allMachines.value.find((machine) => machi
 const selectedMachineAlerts = computed(() => selectedMachine.value ? alerts.value.filter((alert) => alert.machineId === selectedMachine.value?.id && isOpenAlert(alert)) : []);
 const openAlerts = computed(() => alerts.value.filter(isOpenAlert));
 const criticalAlerts = computed(() => openAlerts.value.filter((alert) => alert.severity === 'Critical'));
+// Counts shown anywhere in the UI all derive from the single /api/alerts fetch so
+// overview, reseller cards and alert center always agree.
+const summaryView = computed<DashboardSummary | null>(() => {
+  if (!summary.value) return null;
+  return {
+    ...summary.value,
+    openAlertCount: openAlerts.value.length,
+    criticalAlertCount: criticalAlerts.value.length,
+    resellersAtRisk: summary.value.resellersAtRisk.map((risk) => {
+      const companyAlerts = companyOpenAlerts(risk.companyId, alerts.value);
+      return {
+        ...risk,
+        openAlerts: companyAlerts.length,
+        criticalAlerts: companyAlerts.filter((alert) => alert.severity === 'Critical').length
+      };
+    })
+  };
+});
 const isReseller = computed(() => user.value?.role === 'Reseller');
 const pageTitle = computed(() => ({
   overview: 'Overview',
@@ -79,6 +97,7 @@ async function signIn() {
     setToken(response.token);
     user.value = response.user;
     await loadDashboard();
+    startAutoRefresh();
     if (response.user.role === 'Reseller') {
       await loadAssistant();
     }
@@ -89,9 +108,17 @@ async function signIn() {
   }
 }
 
-async function loadDashboard() {
-  loading.value = true;
-  dispatchStatus.value = '';
+const refreshIntervalMs = 20000;
+let refreshTimer: ReturnType<typeof setInterval> | null = null;
+let refreshInFlight = false;
+
+async function loadDashboard(background = false) {
+  if (refreshInFlight) return;
+  refreshInFlight = true;
+  if (!background) {
+    loading.value = true;
+    dispatchStatus.value = '';
+  }
   try {
     const [summaryResult, companyResult, alertResult, lifetimeResult, trendResult, supportResult] = await Promise.all([
       api.summary(),
@@ -108,10 +135,32 @@ async function loadDashboard() {
     trends.value = trendResult;
     supportSettings.value = supportResult;
     selectedMachineId.value = selectedMachineId.value ?? companyResult[0]?.machines[0]?.id ?? null;
+    error.value = '';
   } catch {
-    error.value = 'Dashboard data could not be loaded. Start Docker and the .NET API, then retry.';
+    if (!background) {
+      error.value = 'Dashboard data could not be loaded. Start Docker and the .NET API, then retry.';
+    }
   } finally {
-    loading.value = false;
+    refreshInFlight = false;
+    if (!background) {
+      loading.value = false;
+    }
+  }
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  refreshTimer = setInterval(() => {
+    if (user.value) {
+      void loadDashboard(true);
+    }
+  }, refreshIntervalMs);
+}
+
+function stopAutoRefresh() {
+  if (refreshTimer) {
+    clearInterval(refreshTimer);
+    refreshTimer = null;
   }
 }
 
@@ -167,11 +216,21 @@ async function acknowledge(alert: Alert) {
 
 async function dispatch(machine: Machine, alert?: Alert) {
   dispatchStatus.value = '';
+  if (alert) {
+    pendingAlertId.value = alert.id;
+  }
   const note = alert
     ? `Dispatch requested from alert center for ${alert.partName}.`
     : `Machine-level dispatch requested for ${machine.name}.`;
-  const result = await api.dispatchTechnician(machine.id, alert?.id, note);
-  dispatchStatus.value = `Dispatch email sent to ${result.recipients.join(', ')} at ${formatDateTime(result.sentAt)}.`;
+  try {
+    const result = await api.dispatchTechnician(machine.id, alert?.id, note);
+    if (alert) {
+      alerts.value = alerts.value.map((item) => (item.id === alert.id ? { ...item, status: 'Dispatched' } : item));
+    }
+    dispatchStatus.value = `Dispatch email sent to ${result.recipients.join(', ')} at ${formatDateTime(result.sentAt)}.`;
+  } finally {
+    pendingAlertId.value = '';
+  }
 }
 
 async function saveSupport(settings: SupportSettings) {
@@ -191,6 +250,7 @@ function openMachineById(machineId: string) {
 }
 
 function logout() {
+  stopAutoRefresh();
   clearToken();
   user.value = null;
   summary.value = null;
@@ -204,6 +264,10 @@ function logout() {
 
 onMounted(() => {
   clearToken();
+});
+
+onUnmounted(() => {
+  stopAutoRefresh();
 });
 </script>
 
@@ -228,7 +292,6 @@ onMounted(() => {
         </div>
         <div class="topbar-actions">
           <span v-if="openAlerts.length" class="alert-counter">{{ openAlerts.length }} open alerts</span>
-          <button class="secondary" @click="loadDashboard">Refresh</button>
         </div>
       </header>
 
@@ -237,15 +300,15 @@ onMounted(() => {
       <TopAlertSummary :alerts="openAlerts" @open-machine="openMachineById" />
 
       <OverviewPage
-        v-if="activePage === 'overview' && summary"
-        :summary="summary"
+        v-if="activePage === 'overview' && summaryView"
+        :summary="summaryView"
         :critical-alerts="criticalAlerts"
         :all-machines="allMachines"
         @navigate="activePage = $event"
         @open-machine="openMachineById"
         @dispatch="dispatch"
       />
-      <ResellersPage v-else-if="activePage === 'resellers'" :companies="companies" @open-machine="openMachine" />
+      <ResellersPage v-else-if="activePage === 'resellers'" :companies="companies" :alerts="alerts" @open-machine="openMachine" />
       <MachinesPage
         v-else-if="activePage === 'machines'"
         :machines="allMachines"

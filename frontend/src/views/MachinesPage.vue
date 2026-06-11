@@ -75,7 +75,13 @@ defineEmits<{
             <strong>{{ alert.partName }}</strong>
             <small>First alerted {{ formatDateTime(alert.createdAt) }} / due {{ formatDate(alert.predictedDueDate) }} / health {{ alert.healthScore }}</small>
           </div>
-          <button class="primary-small" @click="$emit('dispatch', selectedMachine, alert)">Dispatch</button>
+          <button
+            :class="['primary-small', { dispatched: alert.status === 'Dispatched' }]"
+            :disabled="alert.status === 'Dispatched'"
+            @click="$emit('dispatch', selectedMachine, alert)"
+          >
+            {{ alert.status === 'Dispatched' ? 'Dispatched' : 'Dispatch' }}
+          </button>
         </article>
       </div>
 
